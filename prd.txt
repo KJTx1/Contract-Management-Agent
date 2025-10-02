@@ -1,0 +1,106 @@
+Product Requirements Document (PRD)
+Project Name: Logistics Document RAG Assistant (MVP)
+Prepared By: [Your Team]
+Date: [Insert Date]
+Version: 0.1
+1. Overview
+The Logistics Document RAG Assistant enables logistics teams to search and retrieve information from PDF-based documents such as invoices, bills of lading, and customs forms. The solution leverages semantic search, metadata filtering, and LLM-powered question answering.
+The MVP will:
+Provide value within 4 weeks through a lightweight, portable implementation.
+Use FAISS and SQLite for the initial vector and metadata stores.
+Ensure answers always reference the original source PDF.
+Be designed for migration to OCI 23ai for scale and enterprise readiness.
+2. Goals and Non-Goals
+Goals
+Support natural language search over large sets of PDF documents.
+Enable semantic search combined with metadata filters (e.g., shipment ID, customer name, date).
+Return answers with citations, including PDF links and relevant snippets.
+Build the RAG pipeline using LangGraph for modular orchestration.
+Maintain a clear migration path to OCI 23ai.
+Non-Goals (for MVP)
+Full enterprise-scale deployment (OCI 23ai integration is out of scope for MVP).
+Advanced analytics such as predictive risk scoring or dashboards.
+Comprehensive OCR for handwritten or scanned documents.
+3. Users and Use Cases
+Users
+Operations Manager: requires quick access to shipment compliance records.
+Customs/Compliance Officer: needs to verify supporting documents for clearance.
+Finance Team: retrieves invoices for billing verification and disputes.
+Use Cases
+Retrieve UrbanWear invoices from March 2024.
+Identify shipments to Rotterdam missing customs clearance.
+Locate the bill of lading for container ID XYZ123.
+List all shipments delayed at the Port of Singapore.
+4. System Architecture (MVP)
+Data Flow
+PDF Ingestion
+Upload PDFs to OCI Object Storage.
+Extract text using pdfplumber or Unstructured.io.
+Chunk text into segments of 500–800 tokens.
+Metadata Extraction
+Use an LLM to extract shipment ID, customer name, container ID, and date.
+Store metadata in SQLite/Postgres.
+Vector Embeddings
+Generate embeddings with OpenAI or Cohere.
+Store vectors in FAISS (local index).
+LangGraph RAG Pipeline
+Embedding Node: generate query embedding.
+Retriever Node: query FAISS and apply metadata filters from SQLite.
+LLM Node: produce response using top-k retrieved chunks.
+Output Node: return response with citations and PDF link.
+User Interface
+Command line interface for MVP.
+Optional lightweight web interface using FastAPI or Streamlit.
+5. Functional Requirements
+Ingestion
+Upload PDFs into system.
+Extract and chunk text content.
+Store original PDF in Object Storage.
+Store metadata and chunk text in SQLite/Postgres.
+Generate embeddings and insert into FAISS index.
+Retrieval
+Accept natural language queries.
+Generate query embeddings.
+Perform semantic similarity search in FAISS.
+Apply metadata filters from SQLite/Postgres.
+Return top-k results with document IDs and PDF links.
+Generation
+Construct prompts using queries and retrieved chunks.
+Generate answers using an LLM.
+Ensure answers cite the source documents.
+Output
+Display answer text.
+Provide direct link to source PDF.
+Show key metadata (document type, shipment ID, customer name).
+6. Non-Functional Requirements
+Performance: Responses within 5 seconds for a corpus of 100–500 PDFs.
+Accuracy: At least 80% of test queries must return correct or relevant results.
+Reliability: Support a minimum of 10 concurrent users in MVP.
+Security: Store PDFs securely in OCI Object Storage.
+Portability: Enable straightforward migration from FAISS to OCI 23ai.
+7. Tech Stack (MVP)
+Storage: OCI Object Storage for PDFs.
+Parsing: pdfplumber / Unstructured.io.
+Metadata DB: SQLite or Postgres.
+Vector Store: FAISS.
+Embeddings and LLM: OpenAI or Cohere APIs.
+Orchestration: LangGraph.
+Frontend: CLI and optional Streamlit/FastAPI.
+8. Future Enhancements
+Transition vector and metadata storage to OCI 23ai.
+Hybrid retrieval (BM25 + semantic).
+OCR support for scanned documents.
+Multi-language document support.
+Role-based access control.
+Analytics dashboards for operational insights.
+9. Timeline
+Week 1: Build ingestion pipeline (PDF → text → chunks → metadata).
+Week 2: Implement embeddings and FAISS integration.
+Week 3: Develop LangGraph RAG pipeline.
+Week 4: Create UI and conduct testing with sample documents.
+10. Success Criteria
+Ability to upload and query at least 50 PDFs.
+Queries such as “UrbanWear invoices March 2024” return correct documents.
+System responds within 3–5 seconds.
+All answers include citations with PDF links and metadata.
+Logistics teams validate usefulness for daily operations.

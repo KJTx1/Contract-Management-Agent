@@ -129,27 +129,35 @@ FAISS_INDEX_PATH=./data/faiss_index.bin
 ## 📁 **Project Structure**
 
 ```
-├── src/agent/
-│   ├── standalone_graph.py      # Main RAG pipeline (Studio-compatible)
-│   ├── graph.py                 # Graph entry point
-│   ├── config.py                # Configuration management
-│   ├── database.py              # SQLite operations
-│   ├── vector_operations.py     # FAISS vector store
-│   ├── pdf_processor.py         # Document processing
-│   ├── ingestion.py             # Document ingestion pipeline
-│   └── cli.py                   # Command-line interface
-├── data/
-│   ├── contracts.db             # SQLite database
-│   ├── faiss_index.bin          # FAISS vector index
-│   └── docs/                    # Source documents
-├── scripts/
-│   ├── start-studio.sh          # Studio startup script
-│   ├── deploy-local.sh          # Local deployment
-│   └── ingest-documents.py      # Document ingestion
-└── docs/
-    ├── QUICKSTART.md            # Quick start guide
-    ├── STUDIO_GUIDE.md          # Studio usage guide
-    └── ARCHITECTURE.md          # Technical architecture
+├── src/agent/                    # Core RAG implementation
+│   ├── standalone_graph.py     # Main RAG pipeline (Studio-compatible)
+│   ├── graph.py                # Graph entry point
+│   ├── rag_pipeline.py         # RAG workflow definition
+│   ├── config.py               # Configuration management
+│   ├── database.py             # SQLite operations
+│   ├── vector_operations.py    # FAISS vector store
+│   ├── pdf_processor.py        # Document processing
+│   ├── ingestion.py            # Document ingestion pipeline
+│   └── cli.py                  # Command-line interface
+├── data/                        # Data storage
+│   ├── logistics.db            # SQLite database
+│   ├── faiss_index.index       # FAISS vector index
+│   ├── docs/                   # Sample documents
+│   └── pdfs/                   # Processed PDF files
+├── tests/                       # Test suite
+│   ├── unit_tests/             # Unit tests
+│   └── integration_tests/      # Integration tests
+├── deploy-local.sh             # Local deployment script
+├── deploy-studio.sh            # Studio deployment script
+├── start-studio.sh            # Studio startup script
+├── test_mvp.py                # End-to-end test
+├── langgraph.json             # LangGraph configuration
+├── pyproject.toml             # Python dependencies
+├── README.md                  # Main documentation
+├── ARCHITECTURE.md            # Technical architecture
+├── SIMPLE_LOCAL_GUIDE.md      # Quick start guide
+├── STUDIO_SETUP_GUIDE.md      # Studio setup guide
+└── STUDIO_FIX_SUMMARY.md      # Troubleshooting guide
 ```
 
 ## 🛠️ **Development**

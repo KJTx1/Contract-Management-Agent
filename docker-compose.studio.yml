@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # LangGraph Studio - Lightweight Self-Hosted Solution
+  langgraph-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.studio
+    ports:
+      - "8123:8123"  # LangGraph Studio UI
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY:-}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-logistics-rag}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.3}
+      - TOP_K=${TOP_K:-5}
+      - CHUNK_SIZE=${CHUNK_SIZE:-800}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-100}
+    volumes:
+      - ./data:/app/data
+      - ./docs:/app/docs
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/ok"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  studio_data:
+    driver: local
+
+networks:
+  default:
+    name: langgraph-studio

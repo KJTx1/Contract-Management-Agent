@@ -1,0 +1,33 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies (minimal)
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY pyproject.toml README.md ./
+
+# Install dependencies
+RUN pip install --no-cache-dir -e . && \
+    pip install --no-cache-dir langgraph-cli[inmem]
+
+# Copy application code
+COPY src/ ./src/
+COPY langgraph.json ./
+
+# Create data directory
+RUN mkdir -p /app/data
+
+# Expose LangGraph Studio port
+EXPOSE 8123
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8123/ok || exit 1
+
+# Start LangGraph Studio
+CMD ["langgraph", "up", "--port", "8123", "--wait"]

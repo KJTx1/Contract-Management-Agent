@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # LangGraph Studio (Control Plane)
+  langgraph-studio:
+    build: .
+    ports:
+      - "8123:8123"  # LangGraph Studio UI
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-logistics-rag}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
+      - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
+      - SIMILARITY_THRESHOLD=0.3
+      - TOP_K=5
+    volumes:
+      - ./data:/app/data
+      - ./docs:/app/docs
+      - ./.env:/app/.env
+    command: ["langgraph", "up", "--host", "0.0.0.0", "--port", "8123"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Web UI for Document Management (Optional)
+  web-ui:
+    build: .
+    ports:
+      - "8000:8000"  # Web UI
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+    volumes:
+      - ./data:/app/data
+      - ./docs:/app/docs
+      - ./.env:/app/.env
+    command: ["python", "-m", "agent.web_ui"]
+    depends_on:
+      - langgraph-studio
+    restart: unless-stopped
+
+volumes:
+  app_data:
+    driver: local
+
+networks:
+  default:
+    name: logistics-rag-network

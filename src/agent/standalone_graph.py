@@ -42,6 +42,10 @@ class Config:
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
     EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
     
+    # LLM Configuration
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+    
     # Retrieval Configuration
     TOP_K = int(os.getenv("TOP_K", "20"))  # Increased to capture more results
     SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
@@ -262,9 +266,11 @@ class State:
     query_embedding: Optional[List[float]] = None
     retrieved_chunks: List[Dict[str, Any]] = field(default_factory=list)
     combined_context: str = ""
+    context_prompt: str = ""
     
     # Output
     answer: str = ""
+    response: str = ""
     citations: List[Dict[str, Any]] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -330,86 +336,96 @@ class RAGPipeline:
             return {"retrieved_chunks": []}
     
     async def combine_context(self, state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
-        """Combine retrieved chunks into context."""
+        """Build prompt with query + retrieved context (from rag_pipeline.py)."""
         try:
             if not state.retrieved_chunks:
-                return {"combined_context": "No relevant documents found."}
+                context_prompt = f"""Question: {state.user_query}
+
+No relevant documents found in the database. Please try rephrasing your query or check if documents have been ingested."""
+                return {"context_prompt": context_prompt}
             
-            # Sort by relevance score
-            sorted_chunks = sorted(
-                state.retrieved_chunks,
-                key=lambda x: x.get("score", 0),
-                reverse=True
-            )
-            
-            # Combine text content
+            # Build context from chunks (improved formatting)
             context_parts = []
-            for i, chunk in enumerate(sorted_chunks, 1):
-                text = chunk.get("text", "").strip()
-                if text:
-                    source = chunk.get("document_name", "Unknown")
-                    context_parts.append(f"[{i}] From {source}:\n{text}")
+            seen_docs = set()
             
-            combined_context = "\n\n".join(context_parts)
+            for i, chunk in enumerate(state.retrieved_chunks, 1):
+                doc_id = chunk.get("chunk_id", "unknown")
+                doc_type = chunk.get("doc_type", "document")
+                customer = chunk.get("customer_name", "N/A")
+                date = chunk.get("doc_date", "N/A")
+                pdf_url = chunk.get("pdf_url", "")
+                chunk_text = chunk.get("text", "")
+                similarity = chunk.get("score", 0)
+                
+                # Track unique documents
+                seen_docs.add(doc_id)
+                
+                context_parts.append(
+                    f"[Source {i}] (Relevance: {similarity:.2%})\n"
+                    f"Document Type: {doc_type}\n"
+                    f"Customer: {customer}\n"
+                    f"Date: {date}\n"
+                    f"Content: {chunk_text}\n"
+                    f"PDF: {pdf_url}"
+                )
             
-            return {"combined_context": combined_context}
+            context = "\n\n".join(context_parts)
+            
+            context_prompt = f"""You are a logistics document assistant. Answer the question using ONLY the provided document excerpts. Always cite your sources.
+
+Question: {state.user_query}
+
+Relevant Document Excerpts:
+{context}
+
+Instructions:
+1. Answer the question clearly and concisely
+2. Cite specific sources (e.g., "According to Source 1...")
+3. If the documents don't contain enough information, say so
+4. Include relevant details like customer names, dates, and document types
+5. Provide the PDF links for reference
+
+Answer:"""
+            
+            metadata = {
+                "num_sources": len(state.retrieved_chunks),
+                "unique_documents": len(seen_docs)
+            }
+            
+            return {
+                "context_prompt": context_prompt,
+                "metadata": metadata
+            }
             
         except Exception as e:
             print(f"Error in combine_context: {e}")
-            return {"combined_context": "Error processing context."}
+            return {"context_prompt": "Error processing context."}
     
     async def generate_answer(self, state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
-        """Generate answer based on context (lightweight version)."""
+        """Generate answer using LLM (from rag_pipeline.py)."""
         try:
-            if not state.combined_context or state.combined_context == "No relevant documents found.":
+            if not state.context_prompt or "No relevant documents found" in state.context_prompt:
                 return {
-                    "answer": "I couldn't find relevant information to answer your question.",
+                    "response": "I couldn't find relevant information to answer your question.",
                     "citations": []
                 }
             
-            # Simple answer generation (no LLM required for MVP)
-            query_lower = state.user_query.lower()
-            context_lower = state.combined_context.lower()
+            # Use OpenAI for answer generation
+            from openai import OpenAI
             
-            # Extract key information
-            answer_parts = []
+            client = OpenAI(api_key=Config.OPENAI_API_KEY)
             
-            # Look for direct matches or relevant sections
-            lines = state.combined_context.split('\n')
-            relevant_lines = []
-            priority_lines = []  # Lines that contain exact query terms
+            response = client.chat.completions.create(
+                model=Config.LLM_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a helpful logistics document assistant. Always cite your sources and provide accurate information based on the documents provided."},
+                    {"role": "user", "content": state.context_prompt}
+                ],
+                temperature=0.1,
+                max_tokens=1000
+            )
             
-            query_words = [word for word in query_lower.split() if len(word) > 2]  # Lower threshold
-            
-            for line in lines:
-                line_lower = line.lower()
-                line_stripped = line.strip()
-                if line_stripped and len(line_stripped) > 10:  # Skip empty or very short lines
-                    if any(word in line_lower for word in query_words):
-                        relevant_lines.append(line_stripped)
-                        # Prioritize lines that contain the specific query terms (exact match priority)
-                        query_match_count = sum(1 for word in query_words if word in line_lower)
-                        if query_match_count >= 2:  # Lines with multiple query words get highest priority
-                            priority_lines.insert(0, line_stripped)  # Insert at beginning
-                        elif any(word in line_lower for word in query_words[:1]):  # First query word (company name)
-                            priority_lines.append(line_stripped)
-            
-            # If no specific matches, use the first few lines of context
-            if not priority_lines and not relevant_lines:
-                # Fallback: use first meaningful lines from context
-                meaningful_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) > 20][:5]
-                if meaningful_lines:
-                    answer = "Based on the documents, here's what I found:\n\n" + "\n".join(meaningful_lines)
-                else:
-                    answer = f"I found {len(state.retrieved_chunks)} relevant documents, but couldn't extract specific information matching your query. Please review the source documents for details."
-            elif priority_lines:
-                # Use priority lines first, then fill with other relevant lines
-                selected_lines = priority_lines[:3] + [line for line in relevant_lines if line not in priority_lines][:7]
-                answer = "Based on the documents, here's what I found:\n\n" + "\n".join(selected_lines[:10])
-            elif relevant_lines:
-                answer = "Based on the documents, here's what I found:\n\n" + "\n".join(relevant_lines[:10])
-            else:
-                answer = f"I found {len(state.retrieved_chunks)} relevant documents, but couldn't extract specific information matching your query. Please review the source documents for details."
+            answer = response.choices[0].message.content.strip()
             
             # Generate citations
             citations = []
@@ -422,14 +438,14 @@ class RAGPipeline:
                     })
             
             return {
-                "answer": answer,
+                "response": answer,
                 "citations": citations
             }
             
         except Exception as e:
             print(f"Error in generate_answer: {e}")
             return {
-                "answer": "Error generating answer.",
+                "response": "Error generating answer.",
                 "citations": []
             }
     
@@ -443,7 +459,8 @@ class RAGPipeline:
             metadata = {
                 "query": state.user_query,
                 "chunks_retrieved": len(state.retrieved_chunks),
-                "has_context": bool(state.combined_context and state.combined_context != "No relevant documents found.")
+                "has_context": bool(state.context_prompt and "No relevant documents found" not in state.context_prompt),
+                "response": state.response or state.answer
             }
             
             if include_citations and state.citations:

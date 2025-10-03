@@ -149,8 +149,12 @@ FAISS_INDEX_PATH=./data/faiss_index.bin
 ├── deploy-local.sh             # Local deployment script
 ├── deploy-studio.sh            # Studio deployment script
 ├── start-studio.sh            # Studio startup script
-├── test_mvp.py                # End-to-end test
-├── langgraph.json             # LangGraph configuration
+├── tests/                       # Test suite
+│   ├── unit_tests/             # Unit tests
+│   ├── integration_tests/      # Integration tests
+│   └── test_system_integration.py # End-to-end system test
+├── config/                      # Configuration files
+│   └── langgraph.json         # LangGraph configuration
 ├── pyproject.toml             # Python dependencies
 ├── README.md                  # Main documentation
 ├── ARCHITECTURE.md            # Technical architecture

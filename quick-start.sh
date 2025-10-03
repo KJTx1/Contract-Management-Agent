@@ -17,7 +17,8 @@ show_help() {
     echo "  ingest     Ingest documents"
     echo "  query      Query documents"
     echo "  stats      Show system statistics"
-    echo "  test       Run tests"
+    echo "  test       Run unit/integration tests"
+    echo "  system     Run system integration test"
     echo "  clean      Clean up data"
     echo "  help       Show this help"
     echo ""
@@ -73,6 +74,13 @@ run_tests() {
     python -m pytest tests/ -v
 }
 
+# Function to run system integration test
+run_system_test() {
+    echo "🔍 Running system integration test..."
+    source .venv/bin/activate
+    python tests/test_system_integration.py
+}
+
 # Function to clean data
 clean_data() {
     echo "🧹 Cleaning up data..."
@@ -102,6 +110,9 @@ case "${1:-help}" in
         ;;
     test)
         run_tests
+        ;;
+    system)
+        run_system_test
         ;;
     clean)
         clean_data

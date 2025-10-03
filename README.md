@@ -83,7 +83,8 @@ Visit `http://localhost:8123` to access the Studio interface.
 │   └── langgraph.json         # LangGraph configuration
 ├── tests/                       # Test suite
 │   ├── unit_tests/             # Unit tests
-│   └── integration_tests/      # Integration tests
+│   ├── integration_tests/      # Integration tests
+│   └── test_system_integration.py # End-to-end system test
 └── pyproject.toml              # Python dependencies
 ```
 
@@ -165,15 +166,19 @@ python -m src.agent.cli stats
 ## 🧪 **Testing**
 
 ```bash
-# Run all tests
-python -m pytest tests/
+# Run all unit and integration tests
+python -m pytest tests/ -v
 
 # Run specific test suite
 python -m pytest tests/unit_tests/
 python -m pytest tests/integration_tests/
 
-# Run end-to-end test
-python test_mvp.py
+# Run system integration test (end-to-end validation)
+python tests/test_system_integration.py
+
+# Or use quick-start script
+./quick-start.sh test        # Unit/integration tests
+./quick-start.sh system      # System integration test
 ```
 
 ## 🚀 **Deployment Options**

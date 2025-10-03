@@ -44,7 +44,10 @@ langraph/
 ├── deploy-local.sh             # Local deployment script
 ├── deploy-studio.sh            # Studio deployment script
 ├── start-studio.sh            # Studio startup script
-├── test_mvp.py                # End-to-end test
+├── tests/                       # Test suite
+│   ├── unit_tests/             # Unit tests
+│   ├── integration_tests/      # Integration tests
+│   └── test_system_integration.py # End-to-end system test
 ├── langgraph.json             # LangGraph configuration
 ├── pyproject.toml             # Python dependencies
 ├── README.md                  # Main documentation
@@ -94,7 +97,7 @@ python -m src.agent.cli ingest --source your-contract.pdf
 ### **Testing**
 ```bash
 # Run end-to-end test
-python test_mvp.py
+python tests/test_system_integration.py
 
 # Run unit tests
 python -m pytest tests/

@@ -99,4 +99,4 @@ exec python -m langgraph_cli dev \
     --port 8123 \
     --host 127.0.0.1 \
     --no-browser \
-    --config langgraph.json
+    --config config/langgraph.json

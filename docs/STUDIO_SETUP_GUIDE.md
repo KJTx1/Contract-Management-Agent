@@ -148,7 +148,7 @@ lsof -ti:8123 | xargs kill -9
 #### **Issue: Graph Not Found**
 ```bash
 # Check langgraph.json configuration
-cat langgraph.json
+cat config/langgraph.json
 
 # Ensure graph path is correct
 ls -la src/agent/graph.py

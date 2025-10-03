@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -e . && \
 
 # Copy application code
 COPY src/ ./src/
-COPY langgraph.json ./
+COPY config/langgraph.json ./
 
 # Create data directory
 RUN mkdir -p /app/data

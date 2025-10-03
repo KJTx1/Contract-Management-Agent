@@ -399,7 +399,9 @@ Answer:"""
             
         except Exception as e:
             print(f"Error in combine_context: {e}")
-            return {"context_prompt": "Error processing context."}
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
+            return {"context_prompt": f"Error processing context: {str(e)}"}
     
     async def generate_answer(self, state: State, runtime: Runtime[Context]) -> Dict[str, Any]:
         """Generate answer using LLM (from rag_pipeline.py)."""
@@ -410,12 +412,13 @@ Answer:"""
                     "citations": []
                 }
             
-            # Use OpenAI for answer generation
-            from openai import OpenAI
+            # Use OpenAI for answer generation (async)
+            from openai import AsyncOpenAI
+            import asyncio
             
-            client = OpenAI(api_key=Config.OPENAI_API_KEY)
+            client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
             
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=Config.LLM_MODEL,
                 messages=[
                     {"role": "system", "content": "You are a helpful logistics document assistant. Always cite your sources and provide accurate information based on the documents provided."},
@@ -444,8 +447,10 @@ Answer:"""
             
         except Exception as e:
             print(f"Error in generate_answer: {e}")
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
             return {
-                "response": "Error generating answer.",
+                "response": f"Error generating answer: {str(e)}",
                 "citations": []
             }
     

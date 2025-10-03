@@ -30,10 +30,10 @@ if [ ! -f .env ]; then
 COHERE_API_KEY=your-cohere-api-key-here
 
 # RAG Configuration
-SIMILARITY_THRESHOLD=0.3
-TOP_K=5
-CHUNK_SIZE=800
-CHUNK_OVERLAP=100
+SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.1}
+TOP_K=${TOP_K:-50}
+CHUNK_SIZE=${CHUNK_SIZE:-800}
+CHUNK_OVERLAP=${CHUNK_OVERLAP:-100}
 
 # LangSmith (optional - for tracing)
 LANGSMITH_API_KEY=your-langsmith-key-here

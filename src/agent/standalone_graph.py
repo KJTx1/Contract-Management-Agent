@@ -47,8 +47,8 @@ class Config:
     LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
     
     # Retrieval Configuration
-    TOP_K = int(os.getenv("TOP_K", "20"))  # Increased to capture more results
-    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
+    TOP_K = int(os.getenv("TOP_K", "50"))  # Increased for 250+ documents
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.1"))  # Lowered for better recall with large datasets
     
     # Processing Configuration
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))

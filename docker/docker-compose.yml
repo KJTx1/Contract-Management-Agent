@@ -13,8 +13,8 @@ services:
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-logistics-rag}
       - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-true}
       - LANGCHAIN_ENDPOINT=${LANGCHAIN_ENDPOINT:-https://api.smith.langchain.com}
-      - SIMILARITY_THRESHOLD=0.3
-      - TOP_K=5
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.1}
+      - TOP_K=${TOP_K:-50}
     volumes:
       - ./data:/app/data
       - ./docs:/app/docs

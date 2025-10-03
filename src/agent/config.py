@@ -29,7 +29,7 @@ class Config:
     # Embedding Configuration
     EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai")  # openai or cohere
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-    EMBEDDING_DIMENSION = 1536  # text-embedding-3-small dimension
+    EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))  # text-embedding-3-small dimension
     
     # LLM Configuration
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
@@ -40,12 +40,9 @@ class Config:
     CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))  # tokens
     
     # Retrieval Configuration
-    TOP_K = int(os.getenv("TOP_K", "5"))
-    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))  # Lowered for better recall
+    TOP_K = int(os.getenv("TOP_K", "50"))  # Increased for 250+ documents
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.1"))  # Lowered for better recall with large datasets
     
-    # Performance
-    MAX_CONCURRENT_UPLOADS = 5
-    RESPONSE_TIMEOUT = 30  # seconds
     
     @classmethod
     def setup_directories(cls):

@@ -26,9 +26,12 @@ class VectorStore:
             except Exception as e:
                 print(f"Warning: Could not load index: {e}. Creating new index.")
         
-        # Create new index (using L2 distance)
-        index = faiss.IndexFlatL2(self.dimension)
-        print(f"Created new FAISS index with dimension {self.dimension}")
+        # Create scalable index for large document sets
+        # Use IVF index for better performance with 250+ documents
+        nlist = 100  # Number of clusters for IVF
+        quantizer = faiss.IndexFlatL2(self.dimension)
+        index = faiss.IndexIVFFlat(quantizer, self.dimension, nlist)
+        print(f"Created new scalable FAISS index with dimension {self.dimension} and {nlist} clusters")
         return index
     
     def add_vectors(self, embeddings: np.ndarray) -> List[int]:
@@ -45,6 +48,12 @@ class VectorStore:
         
         # Normalize vectors for better similarity search
         faiss.normalize_L2(embeddings)
+        
+        # For IVF index, need to train if not already trained
+        if hasattr(self.index, 'is_trained') and not self.index.is_trained:
+            if self.index.ntotal == 0:
+                # Train on a subset of data if available
+                self.index.train(embeddings)
         
         start_id = self.index.ntotal
         self.index.add(embeddings)

@@ -139,11 +139,10 @@ FAISS_INDEX_PATH=./data/faiss_index.bin
 │   ├── pdf_processor.py        # Document processing
 │   ├── ingestion.py            # Document ingestion pipeline
 │   └── cli.py                  # Command-line interface
-├── data/                        # Data storage
+├── data/                        # Local data storage (dev/testing)
 │   ├── logistics.db            # SQLite database
 │   ├── faiss_index.index       # FAISS vector index
-│   ├── docs/                   # Sample documents
-│   └── pdfs/                   # Processed PDF files
+│   └── pdfs/                   # Sample PDF files (production uses OCI object storage)
 ├── tests/                       # Test suite
 │   ├── unit_tests/             # Unit tests
 │   └── integration_tests/      # Integration tests
@@ -165,11 +164,11 @@ FAISS_INDEX_PATH=./data/faiss_index.bin
 ### **Adding New Documents**
 
 ```bash
-# Place PDF files in data/docs/
-cp your-contract.pdf data/docs/
+# Place PDF files anywhere and ingest them
+cp your-contract.pdf ./your-contract.pdf
 
 # Run ingestion pipeline
-python -m src.agent.cli ingest --source data/docs/your-contract.pdf
+python -m src.agent.cli ingest --source your-contract.pdf
 
 # Restart Studio to see changes
 python -m langgraph_cli dev --port 8123
@@ -252,6 +251,17 @@ docker-compose up -d
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+## 🏗️ **Production Architecture (OCI)**
+
+### **Cloud Storage**
+- **OCI Object Storage**: Primary document storage
+- **OCI Vector Database**: Production vector store  
+- **OCI Database**: Metadata and document tracking
+
+### **Development vs Production**
+- **Development**: Local `data/` directory with SQLite + FAISS
+- **Production**: OCI object storage + vector database + cloud database
 
 ## 📄 **License**
 

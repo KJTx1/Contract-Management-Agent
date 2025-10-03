@@ -34,11 +34,10 @@ langraph/
 │   ├── pdf_processor.py        # Document processing
 │   ├── ingestion.py            # Document ingestion pipeline
 │   └── cli.py                  # Command-line interface
-├── data/                        # Data storage
+├── data/                        # Local data storage (dev/testing)
 │   ├── logistics.db            # SQLite database
 │   ├── faiss_index.index       # FAISS vector index
-│   ├── docs/                   # Sample documents
-│   └── pdfs/                   # Processed PDF files
+│   └── pdfs/                   # Sample PDF files (production uses OCI object storage)
 ├── tests/                       # Test suite
 │   ├── unit_tests/             # Unit tests
 │   └── integration_tests/      # Integration tests
@@ -85,11 +84,11 @@ langraph/
 
 ### **Adding Documents**
 ```bash
-# Place PDF files in data/docs/
-cp your-contract.pdf data/docs/
+# Place PDF files anywhere and ingest them
+cp your-contract.pdf ./your-contract.pdf
 
 # Run ingestion pipeline
-python -m src.agent.cli ingest --source data/docs/your-contract.pdf
+python -m src.agent.cli ingest --source your-contract.pdf
 ```
 
 ### **Testing**

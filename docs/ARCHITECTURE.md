@@ -7,24 +7,26 @@
 │                     INGESTION PIPELINE                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  PDF Document                                                   │
+│  OCI Object Storage PDF                                         │
 │       │                                                         │
-│       ├──> Text Extraction (PyPDF2)                            │
+│       ├──> Stream PDF bytes to memory                          │
 │       │         │                                               │
-│       │         ├──> Chunking (800 tokens, 100 overlap)        │
+│       │         ├──> Text Extraction (PyPDF2 from bytes)       │
 │       │         │         │                                     │
-│       │         │         ├──> Embedding Generation            │
-│       │         │         │    (OpenAI/Cohere)                 │
+│       │         │         ├──> Chunking (800 tokens, 100 overlap) │
 │       │         │         │         │                           │
-│       │         │         │         └──> FAISS Index            │
+│       │         │         │         ├──> Embedding Generation  │
+│       │         │         │         │    (OpenAI/Cohere)         │
+│       │         │         │         │         │                 │
+│       │         │         │         │         └──> FAISS Index  │
+│       │         │         │         │                           │
+│       │         │         │         └──> SQLite (chunks table)  │
 │       │         │         │                                     │
-│       │         │         └──> SQLite (chunks table)            │
+│       │         │         └──> AI Metadata Extraction (LLM)   │
+│       │         │                  │                           │
+│       │         │                  └──> SQLite (documents table) │
 │       │         │                                               │
-│       │         └──> AI Metadata Extraction (LLM)               │
-│       │                  │                                      │
-│       │                  └──> SQLite (documents table)          │
-│       │                                                         │
-│       └──> PDF Storage (data/pdfs/)                            │
+│       │         └──> Store OCI URL (no local storage)          │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -149,21 +151,23 @@ src/agent/
 ### Ingestion Flow
 
 ```
-1. PDF File
+1. OCI Object Storage PDF
    ↓
-2. Extract Text (PyPDF2)
+2. Stream PDF bytes to memory
    ↓
-3. Split into Chunks
+3. Extract Text (PyPDF2 from bytes)
+   ↓
+4. Split into Chunks
    ├─> Store in SQLite (chunks table)
    └─> Generate Embeddings
        ↓
-4. Add to FAISS Index
+5. Add to FAISS Index
    ↓
-5. Extract Metadata (LLM)
+6. Extract Metadata (LLM)
    ↓
-6. Store in SQLite (documents table)
+7. Store in SQLite (documents table)
    ↓
-7. Copy PDF to Storage
+8. Store OCI URL (no local copy)
 ```
 
 ### Query Flow
@@ -229,7 +233,7 @@ src/agent/
                      │
                      ├───▶ SQLite
                      ├───▶ FAISS
-                     └───▶ Local FS
+                     └───▶ OCI Object Storage
 ```
 
 ### Future (Production)
@@ -253,7 +257,7 @@ src/agent/
 - **Documents**: 100-500 PDFs (FAISS L2 index)
 - **Concurrent Users**: 1-10 (single process)
 - **Query Latency**: 1-3 seconds
-- **Storage**: Limited by disk space
+- **Storage**: OCI Object Storage (unlimited)
 
 ### Scaling Up
 - **More Documents**: FAISS IVF index or migrate to OCI 23ai
@@ -264,10 +268,10 @@ src/agent/
 ## 🛡️ Security & Privacy
 
 ### Current
-- **Data**: Stored locally
+- **Data**: OCI Object Storage (cloud)
 - **API Keys**: Environment variables
-- **Access**: File system permissions
-- **Network**: None (local only)
+- **Access**: OCI IAM permissions
+- **Network**: HTTPS/TLS encrypted
 
 ### Production Recommendations
 - **Authentication**: JWT tokens

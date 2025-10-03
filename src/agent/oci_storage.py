@@ -190,8 +190,15 @@ class OCIStorage:
             logger.error(f"Error uploading document to OCI: {e}")
             return None
     
-    async def download_document(self, object_url: str) -> Optional[bytes]:
-        """Download a document from OCI Object Storage."""
+    async def get_document_bytes(self, object_url: str) -> Optional[bytes]:
+        """Get document bytes from OCI Object Storage (streaming to memory).
+        
+        Args:
+            object_url: OCI Object Storage URL
+            
+        Returns:
+            Document bytes for in-memory processing, or None if failed
+        """
         if not self.is_available():
             logger.error("OCI storage not available")
             return None
@@ -203,16 +210,27 @@ class OCIStorage:
             
             namespace, bucket, object_name = parsed_url
             
-            # Download from OCI
-            def _download():
+            # Stream document bytes from OCI to memory
+            def _get_bytes():
                 return self.client.get_object(namespace, bucket, object_name)
             
-            response = await self._run_in_thread_pool(_download)
+            response = await self._run_in_thread_pool(_get_bytes)
             return response.data.content
             
         except Exception as e:
-            logger.error(f"Error downloading document from OCI: {e}")
+            logger.error(f"Error getting document bytes from OCI: {e}")
             return None
+    
+    async def stream_document_to_memory(self, object_url: str) -> Optional[bytes]:
+        """Stream document from OCI to memory for processing (no local storage).
+        
+        This is the preferred method for streaming processing.
+        """
+        return await self.get_document_bytes(object_url)
+    
+    async def download_document(self, object_url: str) -> Optional[bytes]:
+        """Legacy method - use stream_document_to_memory() for clarity."""
+        return await self.get_document_bytes(object_url)
     
     async def delete_document(self, object_url: str) -> bool:
         """Delete a document from OCI Object Storage."""

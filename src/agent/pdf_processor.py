@@ -42,6 +42,35 @@ class PDFProcessor:
         except Exception as e:
             raise RuntimeError(f"Failed to extract text from PDF: {e}")
     
+    def extract_text_from_memory(self, pdf_bytes: bytes, filename: str = "unknown.pdf") -> Tuple[str, int]:
+        """Extract text from PDF bytes (streaming processing).
+        
+        Args:
+            pdf_bytes: PDF content as bytes
+            filename: Original filename for error messages
+            
+        Returns:
+            Tuple of (text_content, page_count)
+        """
+        try:
+            from io import BytesIO
+            pdf_stream = BytesIO(pdf_bytes)
+            pdf_reader = PyPDF2.PdfReader(pdf_stream)
+            page_count = len(pdf_reader.pages)
+            
+            text_parts = []
+            for page_num, page in enumerate(pdf_reader.pages, 1):
+                page_text = page.extract_text()
+                if page_text:
+                    # Add page marker for reference
+                    text_parts.append(f"[Page {page_num}]\n{page_text}")
+            
+            full_text = "\n\n".join(text_parts)
+            return full_text, page_count
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract text from PDF bytes ({filename}): {e}")
+    
     def chunk_text(self, text: str, chunk_size: int = 800, overlap: int = 100) -> List[str]:
         """Split text into overlapping chunks.
         
@@ -206,9 +235,56 @@ Return only the JSON object, no other text.
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
     
+    def calculate_bytes_hash(self, pdf_bytes: bytes) -> str:
+        """Calculate SHA256 hash of PDF bytes."""
+        return hashlib.sha256(pdf_bytes).hexdigest()
+    
     def get_file_size(self, file_path: Path) -> int:
         """Get file size in bytes."""
         return file_path.stat().st_size
+    
+    def get_bytes_size(self, pdf_bytes: bytes) -> int:
+        """Get size of PDF bytes."""
+        return len(pdf_bytes)
+    
+    async def process_pdf_from_memory(self, pdf_bytes: bytes, filename: str, oci_url: str) -> Dict[str, Any]:
+        """Process PDF bytes directly from OCI (streaming processing).
+        
+        Args:
+            pdf_bytes: PDF content as bytes
+            filename: Original filename
+            oci_url: OCI Object Storage URL
+            
+        Returns:
+            Dict containing processing results
+        """
+        try:
+            # Extract text and metadata from bytes
+            text_content, page_count = self.extract_text_from_memory(pdf_bytes, filename)
+            
+            # Generate metadata
+            metadata = self._extract_basic_metadata(text_content, filename)
+            
+            # Calculate file properties from bytes
+            file_hash = self.calculate_bytes_hash(pdf_bytes)
+            file_size = self.get_bytes_size(pdf_bytes)
+            
+            # Create chunks
+            chunks = self.chunk_text(text_content)
+            
+            return {
+                "text_content": text_content,
+                "page_count": page_count,
+                "chunks": chunks,
+                "metadata": metadata,
+                "file_hash": file_hash,
+                "file_size": file_size,
+                "oci_url": oci_url,
+                "filename": filename
+            }
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to process PDF bytes ({filename}): {e}")
     
     async def process_pdf_with_oci(self, pdf_path: Path) -> Dict[str, Any]:
         """Process PDF with OCI storage integration.

@@ -142,12 +142,12 @@ class DocumentIngestionPipeline:
         return local_storage_path, None
     
     async def ingest_from_oci(self, use_llm_metadata: bool = True) -> Dict[str, Any]:
-        """Ingest all PDFs from OCI Object Storage.
+        """Ingest all PDFs from OCI Object Storage using streaming processing (no local storage).
         
         Returns:
             Dict with ingestion results
         """
-        print("🔄 Starting OCI Object Storage ingestion...")
+        print("🔄 Starting OCI Object Storage streaming ingestion...")
         
         if not hasattr(self.pdf_processor, 'oci_storage') or not self.pdf_processor.oci_storage.is_available():
             raise RuntimeError("OCI Object Storage not available")
@@ -187,38 +187,95 @@ class DocumentIngestionPipeline:
             try:
                 print(f"\n📄 Processing: {doc['name']}")
                 
-                # Download PDF from OCI
-                pdf_content = await self.pdf_processor.oci_storage.download_document(doc['url'])
-                if not pdf_content:
-                    print(f"❌ Failed to download {doc['name']}")
+                # Stream PDF bytes from OCI to memory (no local storage)
+                pdf_bytes = await self.pdf_processor.oci_storage.get_document_bytes(doc['url'])
+                if not pdf_bytes:
+                    print(f"❌ Failed to stream {doc['name']} from OCI")
                     results["errors"] += 1
                     continue
                 
-                # Save to temporary file
-                temp_pdf_path = Config.PDF_STORAGE_DIR / f"temp_{doc['name']}"
-                with open(temp_pdf_path, 'wb') as f:
-                    f.write(pdf_content)
+                # Process PDF bytes directly from memory (no temp files)
+                print("  └─ Processing PDF from memory...")
+                processing_result = await self.pdf_processor.process_pdf_from_memory(
+                    pdf_bytes, doc['name'], doc['url']
+                )
                 
-                # Ingest the document
-                doc_id = await self.ingest_document(temp_pdf_path, use_llm_metadata)
+                # Generate document ID
+                doc_id = str(uuid.uuid4())
+                
+                # Extract metadata
+                print("  └─ Extracting metadata...")
+                if use_llm_metadata and Config.OPENAI_API_KEY:
+                    metadata = self.pdf_processor.extract_metadata_with_llm(
+                        processing_result["text_content"], doc['name']
+                    )
+                else:
+                    metadata = processing_result["metadata"]
+                
+                # Store document record (with OCI URL, no local path)
+                doc_data = {
+                    "doc_id": doc_id,
+                    "filename": doc['name'],
+                    "pdf_path": f"oci://{doc['url']}",  # OCI URL stored as path reference
+                    "pdf_url": doc['url'],  # OCI URL
+                    "file_size": processing_result["file_size"],
+                    "page_count": processing_result["page_count"],
+                    "processing_status": "processing",
+                    **metadata
+                }
+                
+                self.db.insert_document(doc_data)
+                
+                # Process chunks
+                print("  └─ Chunking text...")
+                chunks = processing_result["chunks"]
+                print(f"  └─ Created {len(chunks)} chunks")
+                
+                # Generate embeddings and store
+                print("  └─ Generating embeddings...")
+                embeddings = self.embedding_gen.generate_embeddings(chunks)
+                
+                # Add to FAISS
+                embedding_ids = self.vector_store.add_vectors(embeddings)
+                
+                # Store chunks in database
+                print("  └─ Storing chunks...")
+                for chunk_idx, (chunk_text, embedding_id) in enumerate(zip(chunks, embedding_ids)):
+                    chunk_data = {
+                        "doc_id": doc_id,
+                        "chunk_index": chunk_idx,
+                        "chunk_text": chunk_text,
+                        "chunk_embedding_id": embedding_id,
+                        "customer_name": metadata.get("customer_name"),
+                        "doc_type": metadata.get("doc_type"),
+                        "doc_date": metadata.get("doc_date"),
+                        "shipment_id": metadata.get("shipment_id"),
+                        "pdf_url": doc['url']
+                    }
+                    self.db.insert_chunk(chunk_data)
+                
+                # Update document status
+                self.db.update_document_status(doc_id, "completed")
+                
                 results["documents"].append({
                     "doc_id": doc_id,
                     "name": doc['name'],
                     "size": doc['size'],
-                    "oci_url": doc['url']
+                    "oci_url": doc['url'],
+                    "chunks": len(chunks)
                 })
                 results["processed"] += 1
                 
-                # Clean up temp file
-                temp_pdf_path.unlink()
-                
                 print(f"✅ Successfully ingested: {doc['name']}")
+                print(f"   Customer: {metadata.get('customer_name', 'Unknown')}")
+                print(f"   Type: {metadata.get('doc_type', 'other')}")
+                print(f"   Date: {metadata.get('doc_date', 'Unknown')}")
                 
             except Exception as e:
                 print(f"❌ Error processing {doc['name']}: {e}")
                 results["errors"] += 1
         
-        print(f"\n🎉 OCI ingestion complete!")
+        print(f"\n🎉 OCI streaming ingestion complete!")
         print(f"   📄 Processed: {results['processed']}")
         print(f"   ❌ Errors: {results['errors']}")
         

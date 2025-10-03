@@ -169,6 +169,8 @@ python -m agent.cli stats
 
 # Ingest documents if needed
 python -m agent.cli ingest ./docs
+# Or ingest from OCI Object Storage (streaming)
+python -m agent.cli ingest-oci
 ```
 
 #### **Issue: API Keys Not Working**
@@ -231,6 +233,8 @@ print('OpenAI connection successful')
 
 # Terminal 2: Use CLI for document management
 python -m agent.cli ingest ./docs
+# Or for OCI Object Storage (streaming):
+python -m agent.cli ingest-oci
 python -m agent.cli stats
 
 # Browser: Use Studio for query testing and debugging

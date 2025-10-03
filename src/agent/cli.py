@@ -44,7 +44,7 @@ class CLI:
             print(f"❌ Invalid path: must be a PDF file or directory")
     
     async def ingest_oci_command(self, use_llm: bool = True):
-        """Ingest PDFs from OCI Object Storage."""
+        """Ingest PDFs from OCI Object Storage using streaming processing (no local storage)."""
         try:
             result = await self.ingestion_pipeline.ingest_from_oci(use_llm)
             if result["success"]:
@@ -138,7 +138,7 @@ async def main():
         print("=" * 50)
         print("\nUsage:")
         print("  python -m agent.cli ingest <path>     Ingest PDF(s)")
-        print("  python -m agent.cli ingest-oci         Ingest from OCI Object Storage")
+        print("  python -m agent.cli ingest-oci         Ingest from OCI Object Storage (streaming)")
         print("  python -m agent.cli query <question>  Query documents")
         print("  python -m agent.cli interactive        Interactive mode")
         print("  python -m agent.cli stats              Show statistics")

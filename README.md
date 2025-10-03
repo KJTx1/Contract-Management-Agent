@@ -11,6 +11,7 @@ A sophisticated RAG (Retrieval-Augmented Generation) system built with LangGraph
 - 🧠 **AI-Powered Answers**: Get intelligent responses with proper citations
 - 🎨 **LangGraph Studio**: Visual workflow design and debugging interface
 - ⚡ **High Performance**: Async operations optimized for production
+- 🌊 **Streaming Processing**: Process PDFs directly from OCI Object Storage (no local storage)
 - 🔧 **Self-Hosted**: Complete control over your data and infrastructure
 
 ## 🚀 **Quick Start**
@@ -63,10 +64,10 @@ Visit `http://localhost:8123` to access the Studio interface.
 │   ├── pdf_processor.py        # Document processing
 │   ├── ingestion.py            # Document ingestion pipeline
 │   └── cli.py                  # Command-line interface
-├── data/                        # Local data storage (dev/testing)
+├── data/                        # Local metadata storage (SQLite + FAISS)
 │   ├── logistics.db            # SQLite database
 │   ├── faiss_index.index       # FAISS vector index
-│   └── pdfs/                   # Sample PDF files (production uses OCI object storage)
+│   └── pdfs/                   # Sample PDF files (dev only - production uses OCI streaming)
 ├── scripts/                     # Deployment and utility scripts
 │   ├── start-studio.sh        # Studio startup script
 │   ├── deploy-local.sh        # Local deployment
@@ -183,7 +184,7 @@ python -m src.agent.cli stats
 
 ### **Current Implementation**
 - **Document Storage**: OCI Object Storage with local fallback
-- **Vector Store**: FAISS (local) with OCI storage for documents
+- **Vector Store**: FAISS (local) with OCI streaming for documents
 - **Database**: SQLite (local) with OCI URLs for document references
 
 ### **OCI Setup Requirements**
@@ -193,7 +194,7 @@ python -m src.agent.cli stats
 4. **Configuration**: Set up OCI config file or environment variables
 
 ### **Development vs Production**
-- **Development**: Local `data/` directory with SQLite + FAISS + OCI storage
+- **Development**: Local `data/` directory with SQLite + FAISS + OCI streaming
 - **Production**: OCI object storage + FAISS + SQLite (hybrid approach)
 
 ## 🧪 **Testing**

@@ -18,6 +18,7 @@ A production-ready RAG (Retrieval-Augmented Generation) system for contract mana
 - ✅ **Vector Normalization**: L2 normalization for accurate similarity search
 - ✅ **Smart Chunking**: 800-character chunks with 100-character overlap
 - ✅ **Metadata Extraction**: AI-powered document tagging
+- ✅ **Streaming Processing**: Process PDFs directly from OCI Object Storage (no local storage)
 - ✅ **Studio Integration**: Visual debugging and state management
 
 ## 📁 **Streamlined Project Structure**

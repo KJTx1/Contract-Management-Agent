@@ -379,20 +379,30 @@ class RAGPipeline:
             relevant_lines = []
             priority_lines = []  # Lines that contain exact query terms
             
-            query_words = [word for word in query_lower.split() if len(word) > 3]
+            query_words = [word for word in query_lower.split() if len(word) > 2]  # Lower threshold
             
             for line in lines:
                 line_lower = line.lower()
-                if any(word in line_lower for word in query_words):
-                    relevant_lines.append(line.strip())
-                    # Prioritize lines that contain the specific query terms (exact match priority)
-                    query_match_count = sum(1 for word in query_words if word in line_lower)
-                    if query_match_count >= 2:  # Lines with multiple query words get highest priority
-                        priority_lines.insert(0, line.strip())  # Insert at beginning
-                    elif any(word in line_lower for word in query_words[:1]):  # First query word (company name)
-                        priority_lines.append(line.strip())
+                line_stripped = line.strip()
+                if line_stripped and len(line_stripped) > 10:  # Skip empty or very short lines
+                    if any(word in line_lower for word in query_words):
+                        relevant_lines.append(line_stripped)
+                        # Prioritize lines that contain the specific query terms (exact match priority)
+                        query_match_count = sum(1 for word in query_words if word in line_lower)
+                        if query_match_count >= 2:  # Lines with multiple query words get highest priority
+                            priority_lines.insert(0, line_stripped)  # Insert at beginning
+                        elif any(word in line_lower for word in query_words[:1]):  # First query word (company name)
+                            priority_lines.append(line_stripped)
             
-            if priority_lines:
+            # If no specific matches, use the first few lines of context
+            if not priority_lines and not relevant_lines:
+                # Fallback: use first meaningful lines from context
+                meaningful_lines = [line.strip() for line in lines if line.strip() and len(line.strip()) > 20][:5]
+                if meaningful_lines:
+                    answer = "Based on the documents, here's what I found:\n\n" + "\n".join(meaningful_lines)
+                else:
+                    answer = f"I found {len(state.retrieved_chunks)} relevant documents, but couldn't extract specific information matching your query. Please review the source documents for details."
+            elif priority_lines:
                 # Use priority lines first, then fill with other relevant lines
                 selected_lines = priority_lines[:3] + [line for line in relevant_lines if line not in priority_lines][:7]
                 answer = "Based on the documents, here's what I found:\n\n" + "\n".join(selected_lines[:10])

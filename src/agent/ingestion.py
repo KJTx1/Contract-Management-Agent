@@ -51,9 +51,9 @@ class DocumentIngestionPipeline:
             else:
                 metadata = self.pdf_processor._extract_basic_metadata(text_content, pdf_path.name)
             
-            # 3. Copy PDF to storage
+            # 3. Store PDF (local only)
             print("  └─ Storing PDF...")
-            stored_pdf_path = self._store_pdf(pdf_path, doc_id)
+            stored_pdf_path, oci_url = await self._store_pdf(pdf_path, doc_id)
             pdf_url = f"file://{stored_pdf_path.absolute()}"
             
             # 4. Insert document record
@@ -127,12 +127,103 @@ class DocumentIngestionPipeline:
             
             raise RuntimeError(error_msg)
     
-    def _store_pdf(self, pdf_path: Path, doc_id: str) -> Path:
-        """Copy PDF to storage directory."""
-        storage_path = Config.PDF_STORAGE_DIR / f"{doc_id}_{pdf_path.name}"
-        shutil.copy2(pdf_path, storage_path)
-        return storage_path
+    async def _store_pdf(self, pdf_path: Path, doc_id: str) -> tuple[Path, Optional[str]]:
+        """Store PDF locally (OCI upload disabled for now).
+        
+        Returns:
+            Tuple of (local_path, None)
+        """
+        # Store locally only
+        local_storage_path = Config.PDF_STORAGE_DIR / f"{doc_id}_{pdf_path.name}"
+        shutil.copy2(pdf_path, local_storage_path)
+        
+        print("  └─ Stored locally (OCI upload disabled)")
+        
+        return local_storage_path, None
     
+    async def ingest_from_oci(self, use_llm_metadata: bool = True) -> Dict[str, Any]:
+        """Ingest all PDFs from OCI Object Storage.
+        
+        Returns:
+            Dict with ingestion results
+        """
+        print("🔄 Starting OCI Object Storage ingestion...")
+        
+        if not hasattr(self.pdf_processor, 'oci_storage') or not self.pdf_processor.oci_storage.is_available():
+            raise RuntimeError("OCI Object Storage not available")
+        
+        # List documents in OCI (check root and common prefixes)
+        documents = []
+        
+        # Try root first
+        root_docs = await self.pdf_processor.oci_storage.list_documents(prefix="")
+        documents.extend(root_docs)
+        
+        # Try common prefixes
+        for prefix in ["documents/", "pdfs/", "files/", "data/"]:
+            try:
+                prefix_docs = await self.pdf_processor.oci_storage.list_documents(prefix=prefix)
+                documents.extend(prefix_docs)
+            except:
+                pass  # Ignore errors for prefixes that don't exist
+        
+        pdf_documents = [doc for doc in documents if doc['name'].lower().endswith('.pdf')]
+        
+        if not pdf_documents:
+            print("❌ No PDF documents found in OCI Object Storage")
+            return {"success": False, "message": "No PDF documents found"}
+        
+        print(f"📄 Found {len(pdf_documents)} PDF documents in OCI")
+        
+        results = {
+            "success": True,
+            "total_documents": len(pdf_documents),
+            "processed": 0,
+            "errors": 0,
+            "documents": []
+        }
+        
+        for doc in pdf_documents:
+            try:
+                print(f"\n📄 Processing: {doc['name']}")
+                
+                # Download PDF from OCI
+                pdf_content = await self.pdf_processor.oci_storage.download_document(doc['url'])
+                if not pdf_content:
+                    print(f"❌ Failed to download {doc['name']}")
+                    results["errors"] += 1
+                    continue
+                
+                # Save to temporary file
+                temp_pdf_path = Config.PDF_STORAGE_DIR / f"temp_{doc['name']}"
+                with open(temp_pdf_path, 'wb') as f:
+                    f.write(pdf_content)
+                
+                # Ingest the document
+                doc_id = await self.ingest_document(temp_pdf_path, use_llm_metadata)
+                results["documents"].append({
+                    "doc_id": doc_id,
+                    "name": doc['name'],
+                    "size": doc['size'],
+                    "oci_url": doc['url']
+                })
+                results["processed"] += 1
+                
+                # Clean up temp file
+                temp_pdf_path.unlink()
+                
+                print(f"✅ Successfully ingested: {doc['name']}")
+                
+            except Exception as e:
+                print(f"❌ Error processing {doc['name']}: {e}")
+                results["errors"] += 1
+        
+        print(f"\n🎉 OCI ingestion complete!")
+        print(f"   📄 Processed: {results['processed']}")
+        print(f"   ❌ Errors: {results['errors']}")
+        
+        return results
+
     async def ingest_directory(self, directory_path: Path, use_llm_metadata: bool = True) -> Dict[str, Any]:
         """Ingest all PDFs from a directory.
         

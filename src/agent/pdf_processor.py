@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import PyPDF2
 
 from .config import Config
+from .oci_storage import OCIStorage
 
 
 class PDFProcessor:
@@ -15,6 +16,7 @@ class PDFProcessor:
     
     def __init__(self):
         self.config = Config
+        self.oci_storage = OCIStorage()
     
     def extract_text_from_pdf(self, pdf_path: Path) -> Tuple[str, int]:
         """Extract text from PDF file.
@@ -207,4 +209,60 @@ Return only the JSON object, no other text.
     def get_file_size(self, file_path: Path) -> int:
         """Get file size in bytes."""
         return file_path.stat().st_size
+    
+    async def process_pdf_with_oci(self, pdf_path: Path) -> Dict[str, Any]:
+        """Process PDF with OCI storage integration.
+        
+        Returns:
+            Dict containing processing results and OCI object URL
+        """
+        try:
+            # Extract text and metadata
+            text_content, page_count = self.extract_text_from_pdf(pdf_path)
+            
+            # Generate metadata
+            metadata = self.extract_metadata(text_content)
+            
+            # Calculate file properties
+            file_hash = self.calculate_file_hash(pdf_path)
+            file_size = self.get_file_size(pdf_path)
+            
+            # Upload to OCI Object Storage
+            oci_url = None
+            if self.oci_storage.is_available():
+                oci_url = await self.oci_storage.upload_document(str(pdf_path))
+                if oci_url:
+                    print(f"PDF uploaded to OCI: {oci_url}")
+                else:
+                    print("Warning: Failed to upload to OCI, using local path")
+            else:
+                print("OCI storage not available, using local path")
+            
+            # Create chunks
+            chunks = self.create_chunks(text_content)
+            
+            return {
+                "text_content": text_content,
+                "page_count": page_count,
+                "metadata": metadata,
+                "file_hash": file_hash,
+                "file_size": file_size,
+                "chunks": chunks,
+                "oci_url": oci_url,
+                "local_path": str(pdf_path)
+            }
+            
+        except Exception as e:
+            print(f"Error processing PDF with OCI: {e}")
+            return {
+                "text_content": "",
+                "page_count": 0,
+                "metadata": {},
+                "file_hash": "",
+                "file_size": 0,
+                "chunks": [],
+                "oci_url": None,
+                "local_path": str(pdf_path),
+                "error": str(e)
+            }
 

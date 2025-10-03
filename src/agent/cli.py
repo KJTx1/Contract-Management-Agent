@@ -43,6 +43,19 @@ class CLI:
         else:
             print(f"❌ Invalid path: must be a PDF file or directory")
     
+    async def ingest_oci_command(self, use_llm: bool = True):
+        """Ingest PDFs from OCI Object Storage."""
+        try:
+            result = await self.ingestion_pipeline.ingest_from_oci(use_llm)
+            if result["success"]:
+                print(f"✅ Successfully processed {result['processed']} documents")
+                if result["errors"] > 0:
+                    print(f"⚠️  {result['errors']} documents had errors")
+            else:
+                print(f"❌ Ingestion failed: {result.get('message', 'Unknown error')}")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
     async def query_command(self, query: str, filters: Optional[dict] = None, top_k: int = 5):
         """Query the document database."""
         try:
@@ -125,6 +138,7 @@ async def main():
         print("=" * 50)
         print("\nUsage:")
         print("  python -m agent.cli ingest <path>     Ingest PDF(s)")
+        print("  python -m agent.cli ingest-oci         Ingest from OCI Object Storage")
         print("  python -m agent.cli query <question>  Query documents")
         print("  python -m agent.cli interactive        Interactive mode")
         print("  python -m agent.cli stats              Show statistics")
@@ -163,6 +177,10 @@ async def main():
     
     elif command == "list":
         cli.list_command()
+    
+    elif command == "ingest-oci":
+        use_llm = "--no-llm" not in sys.argv
+        await cli.ingest_oci_command(use_llm)
     
     else:
         print(f"❌ Unknown command: {command}")

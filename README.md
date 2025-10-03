@@ -101,6 +101,11 @@ COHERE_API_KEY=your_cohere_api_key_here  # Optional
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 LANGSMITH_PROJECT=contract-management-agent
 
+# OCI Configuration (Required for Object Storage)
+OCI_CONFIG_FILE=~/.oci/config
+OCI_PROFILE=DEFAULT
+OCI_BUCKET_NAME=contract-documents
+
 # Embedding Configuration
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
@@ -114,6 +119,23 @@ LLM_MODEL=gpt-4o-mini
 TOP_K=20
 SIMILARITY_THRESHOLD=0.3
 ```
+
+**Copy the example configuration:**
+```bash
+cp config/env.example .env
+# Edit .env with your actual API keys and OCI configuration
+```
+
+### **OCI Setup**
+1. **Install OCI CLI**: `pip install oci`
+2. **Configure OCI**: Set up `~/.oci/config` file or environment variables
+3. **Create Bucket**: Create an OCI Object Storage bucket
+4. **Set Environment**: Configure `OCI_BUCKET_NAME` in your `.env` file
+
+**OCI Configuration Options:**
+- **Config File**: `~/.oci/config` (recommended)
+- **Environment Variables**: Set OCI_* variables directly
+- **Instance Principal**: For OCI compute instances
 
 ## 📊 **Sample Data**
 
@@ -155,13 +177,24 @@ python -m src.agent.cli stats
 ## 🏗️ **Production Architecture (OCI)**
 
 ### **Cloud Storage**
-- **OCI Object Storage**: Primary document storage
-- **OCI Vector Database**: Production vector store  
-- **OCI Database**: Metadata and document tracking
+- **OCI Object Storage**: Primary document storage (✅ Implemented)
+- **OCI Vector Database**: Production vector store (Future enhancement)
+- **OCI Database**: Metadata and document tracking (Future enhancement)
+
+### **Current Implementation**
+- **Document Storage**: OCI Object Storage with local fallback
+- **Vector Store**: FAISS (local) with OCI storage for documents
+- **Database**: SQLite (local) with OCI URLs for document references
+
+### **OCI Setup Requirements**
+1. **OCI Account**: Oracle Cloud Infrastructure account
+2. **Object Storage Bucket**: Create a bucket for document storage
+3. **API Keys**: Generate OCI API keys and configure authentication
+4. **Configuration**: Set up OCI config file or environment variables
 
 ### **Development vs Production**
-- **Development**: Local `data/` directory with SQLite + FAISS
-- **Production**: OCI object storage + vector database + cloud database
+- **Development**: Local `data/` directory with SQLite + FAISS + OCI storage
+- **Production**: OCI object storage + FAISS + SQLite (hybrid approach)
 
 ## 🧪 **Testing**
 

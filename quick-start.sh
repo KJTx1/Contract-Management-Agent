@@ -15,6 +15,7 @@ show_help() {
     echo "Commands:"
     echo "  studio     Start LangGraph Studio"
     echo "  ingest     Ingest documents"
+    echo "  ingest-oci Ingest from OCI Object Storage"
     echo "  query      Query documents"
     echo "  stats      Show system statistics"
     echo "  test       Run unit/integration tests"
@@ -44,7 +45,14 @@ ingest_docs() {
     
     echo "📄 Ingesting document: $1"
     source .venv/bin/activate
-    python -m src.agent.cli ingest --source "$1"
+    python -m src.agent.cli ingest "$1"
+}
+
+# Function to ingest from OCI Object Storage
+ingest_oci() {
+    echo "☁️  Ingesting documents from OCI Object Storage..."
+    source .venv/bin/activate
+    python -m src.agent.cli ingest-oci
 }
 
 # Function to query documents
@@ -101,6 +109,9 @@ case "${1:-help}" in
         ;;
     ingest)
         ingest_docs "$2"
+        ;;
+    ingest-oci)
+        ingest_oci
         ;;
     query)
         query_docs "$2"

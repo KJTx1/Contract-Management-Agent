@@ -167,10 +167,11 @@ class VectorStore:
             self.chunk_ids = [str(i + 1) for i in range(self.index.ntotal if self.index else 0)]
     
     def search(self, query_embedding: List[float], top_k: int = 5, 
-               similarity_threshold: float = 0.3, filters: Optional[Dict] = None) -> List[Dict[str, Any]]:
+               similarity_threshold: float = None, filters: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """Search for similar vectors."""
         if not self.index or not query_embedding:
             return []
+        
         
         try:
             import faiss
@@ -190,8 +191,8 @@ class VectorStore:
                     chunk_id = self.chunk_ids[idx] if idx < len(self.chunk_ids) else None
                     if chunk_id is not None:
                         # Convert L2 distance to similarity score (lower distance = higher similarity)
-                        # For normalized vectors, similarity = 1 - (distance^2 / 4)
-                        similarity = max(0, 1 - (distance * distance / 4))
+                        # Use same formula as CLI: similarity = 1 / (1 + distance)
+                        similarity = 1 / (1 + float(distance))
                         
                         if similarity >= similarity_threshold:
                             results.append({

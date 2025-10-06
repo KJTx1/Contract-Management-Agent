@@ -137,6 +137,42 @@ class Database:
             
             return cur.lastrowid
     
+    def insert_chunks_batch(self, chunks_data: List[Dict[str, Any]]) -> List[int]:
+        """Insert multiple chunks in a single transaction for better performance."""
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            
+            # Prepare data for batch insert
+            batch_data = []
+            for chunk_data in chunks_data:
+                batch_data.append((
+                    chunk_data["doc_id"],
+                    chunk_data["chunk_index"],
+                    chunk_data["chunk_text"],
+                    chunk_data.get("chunk_embedding_id"),
+                    chunk_data.get("customer_name"),
+                    chunk_data.get("doc_type"),
+                    chunk_data.get("doc_date"),
+                    chunk_data.get("shipment_id"),
+                    chunk_data.get("pdf_url")
+                ))
+            
+            # Execute batch insert
+            cur.executemany("""
+                INSERT INTO chunks (
+                    doc_id, chunk_index, chunk_text, chunk_embedding_id,
+                    customer_name, doc_type, doc_date, shipment_id, pdf_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, batch_data)
+            
+            # Return the IDs of inserted chunks
+            if cur.lastrowid is not None:
+                first_id = cur.lastrowid - len(batch_data) + 1
+                return list(range(first_id, cur.lastrowid + 1))
+            else:
+                # Fallback: return sequential IDs starting from 1
+                return list(range(1, len(batch_data) + 1))
+    
     def get_document(self, doc_id: str) -> Optional[Dict]:
         """Get a document by ID."""
         with self.get_connection() as conn:

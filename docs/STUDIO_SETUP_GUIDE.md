@@ -171,6 +171,8 @@ python -m agent.cli stats
 python -m agent.cli ingest ./docs
 # Or ingest from OCI Object Storage (streaming)
 python -m agent.cli ingest-oci
+# For large batches (100+ PDFs), use concurrent processing
+python -m agent.cli ingest-oci-concurrent --max-concurrent=10
 ```
 
 #### **Issue: API Keys Not Working**
@@ -235,6 +237,8 @@ print('OpenAI connection successful')
 python -m agent.cli ingest ./docs
 # Or for OCI Object Storage (streaming):
 python -m agent.cli ingest-oci
+# For large batches, use concurrent processing:
+python -m agent.cli ingest-oci-concurrent --max-concurrent=5
 python -m agent.cli stats
 
 # Browser: Use Studio for query testing and debugging

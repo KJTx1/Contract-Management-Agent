@@ -14,8 +14,8 @@ from .database import Database
 class CLI:
     """Command-line interface for document ingestion and querying."""
     
-    def __init__(self):
-        self.ingestion_pipeline = DocumentIngestionPipeline()
+    def __init__(self, max_concurrent: int = 5):
+        self.ingestion_pipeline = DocumentIngestionPipeline(max_concurrent=max_concurrent)
         self.db = Database()
     
     async def ingest_command(self, path: str, use_llm: bool = True):
@@ -47,6 +47,21 @@ class CLI:
         """Ingest PDFs from OCI Object Storage using streaming processing (no local storage)."""
         try:
             result = await self.ingestion_pipeline.ingest_from_oci(use_llm)
+            if result["success"]:
+                print(f"✅ Successfully processed {result['processed']} documents")
+                if result["errors"] > 0:
+                    print(f"⚠️  {result['errors']} documents had errors")
+            else:
+                print(f"❌ Ingestion failed: {result.get('message', 'Unknown error')}")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    async def ingest_oci_concurrent_command(self, use_llm: bool = True, max_concurrent: int = 5):
+        """Ingest PDFs from OCI Object Storage using concurrent processing for better performance."""
+        try:
+            # Create a new pipeline with specified concurrency
+            concurrent_pipeline = DocumentIngestionPipeline(max_concurrent=max_concurrent)
+            result = await concurrent_pipeline.ingest_from_oci(use_llm)
             if result["success"]:
                 print(f"✅ Successfully processed {result['processed']} documents")
                 if result["errors"] > 0:
@@ -139,6 +154,7 @@ async def main():
         print("\nUsage:")
         print("  python -m agent.cli ingest <path>     Ingest PDF(s)")
         print("  python -m agent.cli ingest-oci         Ingest from OCI Object Storage (streaming)")
+        print("  python -m agent.cli ingest-oci-concurrent [--max-concurrent=N]  Ingest from OCI with concurrency")
         print("  python -m agent.cli query <question>  Query documents")
         print("  python -m agent.cli interactive        Interactive mode")
         print("  python -m agent.cli stats              Show statistics")
@@ -181,6 +197,20 @@ async def main():
     elif command == "ingest-oci":
         use_llm = "--no-llm" not in sys.argv
         await cli.ingest_oci_command(use_llm)
+    
+    elif command == "ingest-oci-concurrent":
+        use_llm = "--no-llm" not in sys.argv
+        max_concurrent = 5  # Default
+        
+        # Parse --max-concurrent argument
+        for arg in sys.argv:
+            if arg.startswith("--max-concurrent="):
+                try:
+                    max_concurrent = int(arg.split("=")[1])
+                except ValueError:
+                    print("❌ Invalid max-concurrent value. Using default: 5")
+        
+        await cli.ingest_oci_concurrent_command(use_llm, max_concurrent)
     
     else:
         print(f"❌ Unknown command: {command}")

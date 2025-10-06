@@ -26,12 +26,10 @@ class VectorStore:
             except Exception as e:
                 print(f"Warning: Could not load index: {e}. Creating new index.")
         
-        # Create scalable index for large document sets
-        # Use IVF index for better performance with 250+ documents
-        nlist = 100  # Number of clusters for IVF
-        quantizer = faiss.IndexFlatL2(self.dimension)
-        index = faiss.IndexIVFFlat(quantizer, self.dimension, nlist)
-        print(f"Created new scalable FAISS index with dimension {self.dimension} and {nlist} clusters")
+        # Start with simple index for small datasets
+        # Will automatically upgrade to IVF when we have enough vectors
+        index = faiss.IndexFlatL2(self.dimension)
+        print(f"Created new FAISS index with dimension {self.dimension}")
         return index
     
     def add_vectors(self, embeddings: np.ndarray) -> List[int]:
@@ -49,6 +47,11 @@ class VectorStore:
         # Normalize vectors for better similarity search
         faiss.normalize_L2(embeddings)
         
+        # Check if we need to upgrade to IVF index for better performance
+        if (isinstance(self.index, faiss.IndexFlatL2) and 
+            self.index.ntotal + len(embeddings) >= 100):
+            self._upgrade_to_ivf_index()
+        
         # For IVF index, need to train if not already trained
         if hasattr(self.index, 'is_trained') and not self.index.is_trained:
             if self.index.ntotal == 0:
@@ -62,6 +65,29 @@ class VectorStore:
         self.save()
         
         return list(range(start_id, self.index.ntotal))
+    
+    def _upgrade_to_ivf_index(self):
+        """Upgrade from FlatL2 to IVF index for better performance with large datasets."""
+        if isinstance(self.index, faiss.IndexFlatL2) and self.index.ntotal >= 50:
+            print("🔄 Upgrading to IVF index for better performance...")
+            
+            # Get all existing vectors
+            all_vectors = self.index.reconstruct_n(0, self.index.ntotal)
+            
+            # Create new IVF index
+            nlist = min(100, max(10, self.index.ntotal // 10))  # Adaptive cluster count
+            quantizer = faiss.IndexFlatL2(self.dimension)
+            new_index = faiss.IndexIVFFlat(quantizer, self.dimension, nlist)
+            
+            # Train the new index
+            new_index.train(all_vectors)
+            
+            # Add all vectors to the new index
+            new_index.add(all_vectors)
+            
+            # Replace the old index
+            self.index = new_index
+            print(f"✅ Upgraded to IVF index with {nlist} clusters")
     
     def search(self, query_embedding: np.ndarray, k: int = 5) -> Tuple[np.ndarray, np.ndarray]:
         """Search for similar vectors.

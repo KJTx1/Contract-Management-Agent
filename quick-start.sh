@@ -16,6 +16,7 @@ show_help() {
     echo "  studio     Start LangGraph Studio"
     echo "  ingest     Ingest documents"
     echo "  ingest-oci Ingest from OCI Object Storage"
+    echo "  ingest-oci-concurrent [--max-concurrent=N]  Ingest from OCI with concurrency"
     echo "  query      Query documents"
     echo "  stats      Show system statistics"
     echo "  test       Run unit/integration tests"
@@ -112,6 +113,11 @@ case "${1:-help}" in
         ;;
     ingest-oci)
         ingest_oci
+        ;;
+    ingest-oci-concurrent)
+        echo "🚀 Starting concurrent OCI ingestion..."
+        source .venv/bin/activate
+        python -m src.agent.cli ingest-oci-concurrent "${@:2}"
         ;;
     query)
         query_docs "$2"

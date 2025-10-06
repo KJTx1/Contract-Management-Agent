@@ -3,6 +3,8 @@
 import hashlib
 import json
 import re
+import asyncio
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 import PyPDF2
@@ -11,12 +13,39 @@ from .config import Config
 from .oci_storage import OCIStorage
 
 
+class RateLimitedOpenAIClient:
+    """Rate-limited OpenAI client for concurrent processing."""
+    
+    def __init__(self, requests_per_minute: int = 60):
+        self.requests_per_minute = requests_per_minute
+        self.semaphore = asyncio.Semaphore(requests_per_minute)
+        self.last_request_time = 0
+        self.min_interval = 60.0 / requests_per_minute  # Minimum interval between requests
+    
+    async def create_completion(self, **kwargs):
+        """Create completion with rate limiting."""
+        async with self.semaphore:
+            # Ensure minimum interval between requests
+            current_time = time.time()
+            time_since_last = current_time - self.last_request_time
+            if time_since_last < self.min_interval:
+                await asyncio.sleep(self.min_interval - time_since_last)
+            
+            self.last_request_time = time.time()
+            
+            # Make the actual API call
+            from openai import OpenAI
+            client = OpenAI(api_key=Config.OPENAI_API_KEY)
+            return client.chat.completions.create(**kwargs)
+
+
 class PDFProcessor:
     """Handles PDF text extraction and chunking."""
     
     def __init__(self):
         self.config = Config
         self.oci_storage = OCIStorage()
+        self.rate_limited_client = RateLimitedOpenAIClient(requests_per_minute=50)  # Conservative rate limit
     
     def extract_text_from_pdf(self, pdf_path: Path) -> Tuple[str, int]:
         """Extract text from PDF file.
@@ -123,17 +152,13 @@ class PDFProcessor:
         
         return text.strip()
     
-    def extract_metadata_with_llm(self, text: str, filename: str) -> Dict[str, Any]:
-        """Extract metadata from document using LLM."""
+    async def extract_metadata_with_llm(self, text: str, filename: str) -> Dict[str, Any]:
+        """Extract metadata from document using LLM with rate limiting."""
         try:
-            from openai import OpenAI
-            
-            client = OpenAI(api_key=Config.OPENAI_API_KEY)
-            
             # Create prompt for metadata extraction
             prompt = self._create_metadata_prompt(text, filename)
             
-            response = client.chat.completions.create(
+            response = await self.rate_limited_client.create_completion(
                 model=Config.LLM_MODEL,
                 messages=[
                     {"role": "system", "content": "You are a logistics document analysis assistant. Extract structured metadata from documents."},
